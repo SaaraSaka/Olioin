@@ -1,0 +1,204 @@
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
+TextView maara;
+Context context=null;
+SeekBar maaraliukuri;
+Spinner nimi;
+Spinner koko;
+TextView teksti;
+TextView rahat;
+String haluttunimi;
+Double haluttukoko;
+   @Override
+   protected void onCreate(Bundle savedInstanceState) {
+       super.onCreate(savedInstanceState);
+       setContentView(R.layout.activity_main);
+       context=MainActivity.this;
+       BottleDispenser bd=BottleDispenser.getInstance();
+       Button lisaa =findViewById(R.id.button);
+       Button nosta =findViewById(R.id.nostarahaa);
+       Button osta = findViewById(R.id.ostapullo);
+       Button kuitti=findViewById(R.id.kuitti);
+       Spinner nimi = findViewById(R.id.limsamerkki);
+       ArrayAdapter<Object> adapter =new ArrayAdapter<Object>(context, android.R.layout.simple_spinner_item, bd.pullolista);
+       adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+       nimi.setAdapter(adapter);
+       nimi.setOnItemSelectedListener(this);
+       Spinner koko = findViewById(R.id.limsakoko);
+       ArrayAdapter<Double> kadapter =new ArrayAdapter<Double>(this, android.R.layout.simple_spinner_item, bd.pkokolista);
+       kadapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+       koko.setAdapter(kadapter);
+       koko.setOnItemSelectedListener(this);
+       teksti=(TextView)findViewById(R.id.teksti);
+       rahat=(TextView)findViewById(R.id.rahat);
+       maara=(TextView)findViewById(R.id.maara);
+       maaraliukuri=(SeekBar)findViewById(R.id.maaraliukuri);
+       maaraliukuri.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+           @Override
+           public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+               maara.setText(""+progress);
+           }
+           @Override
+           public void onStartTrackingTouch(SeekBar seekBar) {
+           }
+           @Override
+           public void onStopTrackingTouch(SeekBar seekBar) {
+           }
+       });
+   }
+   BottleDispenser bd=BottleDispenser.getInstance();
+   public void returnMoney(View v){
+       teksti.setText(bd.returnMoney());
+       rahat.setText("0 €");
+   }
+   public void addMoney(View v){
+       rahat.setText(((Double)bd.addMoney(parseInt((String)maara.getText()))).toString()+" €");
+       teksti.setText("Klink! Added more money!");
+       maaraliukuri.setProgress(0);
+   }
+   @Override
+   public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+       switch(parent.getId()) {
+           case R.id.limsakoko:
+               haluttukoko = parseDouble(parent.getItemAtPosition(position).toString());
+               break;
+           case R.id.limsamerkki:
+               haluttunimi=parent.getItemAtPosition(position).toString();
+               break;
+       }
+   }
+   @Override
+   public void onNothingSelected(AdapterView<?> parent) {
+   }
+   public void buyBottle(View v){
+       teksti.setText(bd.buyBottle(haluttunimi, haluttukoko));
+       rahat.setText(bd.moneyAmount());
+}
+public void printReceipt(View v) {
+       String viimn=bd.getViimn();
+       Double viimh=bd.getViimh();
+   try {
+       OutputStreamWriter bw = new OutputStreamWriter(context.openFileOutput("Receipt.txt", Context.MODE_PRIVATE));
+   if(viimn!=null) {
+       String x="Your Receipt:";
+       String y="Product purchased: "+viimn;
+       String z="Price: "+viimh;
+       bw.write(x+"\n");
+       bw.write(y+"\n");
+       bw.write(z);
+       bw.close();
+       teksti.setText("Receipt printed!");
+}
+       else{
+           teksti.setText("Buy something first!");
+       }
+   } catch (FileNotFoundException e) {
+       e.printStackTrace();
+   } catch (IOException e) {
+       e.printStackTrace();
+   }
+}}
+package com.example.viikko8;
+import android.content.Context;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.text.DecimalFormat;
+public class BottleDispenser {
+       DecimalFormat df=new DecimalFormat("#0.00");
+       private double money;
+       private double viimh=0.0;
+       private String viimn=null;
+       public ArrayList<Object> pullolista=new ArrayList<Object>();
+       public ArrayList<Double> pkokolista= new ArrayList<>();
+       private static BottleDispenser bd=new BottleDispenser();
+       private BottleDispenser()  {
+           money = 0;
+           pullolista.add(new Bottle("Select a product:",0.0,0.0));
+           pullolista.add(new Bottle("Pepsi Max",1.8,0.5));
+           pullolista.add(new Bottle("Pepsi Max", 2.2 ,1.5));
+           pullolista.add(new Bottle("Coca-Cola Zero",2.0,0.5));
+           pullolista.add(new Bottle("Coca-Cola Zero",2.5,1.5));
+           pullolista.add(new Bottle("Fanta Zero",1.95,0.5));
+           pkokolista.add(0.5);
+           pkokolista.add(1.5);
+       }
+       public static BottleDispenser getInstance() {
+           return bd;
+       }
+       public Double addMoney(int maara) {
+           money += maara;
+          return money;
+       }
+       public String buyBottle(String haluttunimi, Double haluttukoko){
+           String x=null;
+           for (int i=0; i<pullolista.size();i++){
+               Bottle bullo=(Bottle)pullolista.get(i);
+               if(haluttunimi=="Select a product:") {
+                   return "Please select a product first!";
+               }
+               else if(bullo.toString()==haluttunimi){
+                   if(bullo.getSize()==haluttukoko){
+                       if(money>=bullo.getPrice()){
+                           money-=bullo.getPrice();
+                           viimh=bullo.getPrice();
+                           viimn=bullo.toString();
+                           pullolista.remove(bullo);
+                           return "KACHUNK! "+haluttunimi+" came out of the dispenser!";
+                       }
+                       else {
+                           return "Add money first!";
+                       }
+                   }
+                   else {
+                       x="Product not available.";
+                   }
+               }
+               else{
+                  x="Product not available.";
+               }
+           }
+           return x;
+       }
+       public String returnMoney() {
+           if(money == 0){
+               return "Klink klink!! All money gone!";
+           }
+           else {
+               double moneyleft=money;
+               money=0;
+               return "Klink klink. Money came out! You got " + df.format(moneyleft) + "€ back";
+           } }
+   public String moneyAmount(){
+           return df.format(money)+" €";
+   }
+   public String getViimn() {
+   return viimn;
+}
+   public double getViimh(){
+               return viimh;
+}
+}
+package com.example.viikko8;
+public class Bottle {
+       private String name;
+       private double size;
+       private double price;
+       public Bottle(String n, double p, double s){
+           name=n;
+           price=p;
+           size=s;
+       }
+       public double getSize(){
+           return size;
+       }
+       public double getPrice(){
+           return price;
+       }
+       @Override
+       public String toString(){
+           return name;
+       }
+   }
